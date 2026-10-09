@@ -32,7 +32,20 @@ pnpm install
 cp .env.example .env
 ```
 
-在 `.env` 里至少配置一个可用的模型 Key，然后先跑最小校验：
+配置模板默认使用智谱开放平台普通 API（OpenAI 兼容接口）。在本地 `.env` 中将 `OPENAI_API_KEY` 填为你的智谱 API Key：
+
+```env
+OPENCLAW_MINI_PROVIDER=openai
+OPENCLAW_MINI_MODEL=glm-4-flash
+OPENCLAW_MINI_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+OPENCLAW_MINI_REASONING=none
+OPENAI_API_KEY=替换为你的智谱API_Key
+```
+
+这里的 `openai` 表示接口格式，实际请求发送到智谱，不需要 OpenAI 的 Key。不要将真实 Key 提交到 Git。
+如果已有 `.env`，直接修改上面的配置项，无需覆盖文件中的其他设置。
+
+然后先跑最小校验：
 
 ```bash
 pnpm test
@@ -46,6 +59,9 @@ pnpm example:gateway
 ```
 
 ## 安装与开发
+
+需要 Node.js >= 22.19.0（与 `@earendil-works/pi-ai` 1.1.0 的运行时要求一致）。
+旧版全局 API（如 `streamSimple`、`getModel`、`getEnvApiKey`）通过该包的 `/compat` 入口使用，核心类型仍从主入口导入。
 
 作为独立项目开发：
 
@@ -96,7 +112,7 @@ OpenClaw 是一个超 43w 行的复杂 Agent 系统，本项目从中提炼出�
 
 本项目按学习价值分为四层，建议按 **核心 → 扩展 → 网关 → 工程** 的顺序阅读：
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
 │                     [网关层] Gateway                          │
 │  WebSocket RPC 网关，让 Agent 从 CLI 直连升级为网络服务       │
@@ -127,7 +143,7 @@ OpenClaw 是一个超 43w 行的复杂 Agent 系统，本项目从中提炼出�
 ### 核心层 — 必读
 
 | 模块 | 文件 | 核心职责 | openclaw 对应 |
-|------|------|----------|---------------|
+| ------ | ------ | ---------- | --------------- |
 | **Agent** | `agent.ts` | 入口 + subscribe/emit 事件分发 | `agent.js` |
 | **Agent Loop** | `agent-loop.ts` | 双层循环 (outer=follow-up, inner=tools+steering) | `agent-loop.js` |
 | **EventStream** | `agent-events.ts` | 20 种 MiniAgentEvent 判别联合 + 异步推拉 | `types.d.ts` AgentEvent |
@@ -141,7 +157,7 @@ OpenClaw 是一个超 43w 行的复杂 Agent 系统，本项目从中提炼出�
 ### 扩展层 — 选读
 
 | 模块 | 文件 | 核心职责 | openclaw 对应 |
-|------|------|----------|---------------|
+| ------ | ------ | ---------- | --------------- |
 | **Memory** | `memory.ts` | 长期记忆 (关键词检索 + 相关性排序) | `memory/manager.ts` |
 | **Skills** | `skills.ts` | SKILL.md frontmatter + 触发词匹配 | `agents/skills/` |
 | **Heartbeat** | `heartbeat.ts` | 两层架构: wake 请求合并 + runner 调度 | `heartbeat-runner.ts` + `heartbeat-wake.ts` |
@@ -149,7 +165,7 @@ OpenClaw 是一个超 43w 行的复杂 Agent 系统，本项目从中提炼出�
 ### 工程层 — 可跳过
 
 | 模块 | 文件 | 核心职责 |
-|------|------|----------|
+| ------ | ------ | ---------- |
 | **Session Key** | `session-key.ts` | 多 agent 会话键规范化 (`agent:id:session`) |
 | **Tool Policy** | `tool-policy.ts` | 工具访问三级控制 (allow/deny/none) |
 | **Command Queue** | `command-queue.ts` | 并发 lane 控制 (session 串行 + global 并行) |
@@ -162,7 +178,7 @@ OpenClaw 是一个超 43w 行的复杂 Agent 系统，本项目从中提炼出�
 学习如何将 Agent 从 CLI 直连升级为可远程访问的 WebSocket RPC 服务。
 
 | 模块 | 文件 | 核心职责 | openclaw 对应 |
-|------|------|----------|---------------|
+| ------ | ------ | ---------- | --------------- |
 | **Protocol** | `gateway/protocol.ts` | 三种帧类型 (req/res/event) + 错误码 + 常量 | `protocol/schema/frames.ts` + `error-codes.ts` |
 | **Server** | `gateway/server.ts` | HTTP+WS 服务、challenge 握手、方法路由、Pub/Sub 广播、背压控制、优雅关闭 | `server.impl.ts` + `server-broadcast.ts` + `server-close.ts` |
 | **Handlers** | `gateway/handlers.ts` | 6 个 RPC 方法 (connect/chat.send/chat.history/sessions.*/health) | `server-methods/*.ts` |
@@ -247,6 +263,7 @@ JSONL 格式：每行一条 entry，损坏行跳过不影响其他数据。写�
 **问题**：上下文窗口有限，如何在不丢失关键信息的情况下控制大小？
 
 三层递进策略：
+
 1. **Pruning** — 裁剪旧的 tool_result（保留最近 N 条完整）
 2. **Compaction** — 超过阈值后，旧消息压缩为"历史摘要"
 3. **Bootstrap** — 按需加载 AGENTS.md 等配置文件（超长文件 head+tail 截断）
@@ -282,11 +299,12 @@ openclaw 用 SQLite-vec 做向量语义搜索 + BM25 关键词搜索，本项目
 **问题**：Agent 如何"主动"工作，而不只是被动响应？
 
 两层架构：
+
 - **HeartbeatWake**（请求合并层）：多来源触发 (interval/cron/exec/requested) → 250ms 合并窗口 → 双重缓冲
 - **HeartbeatRunner**（调度层）：活跃时间检查 → HEARTBEAT.md 解析 → 空内容跳过 → 重复抑制
 
 | 设计点 | 为什么这样做 |
-|--------|-------------|
+| -------- | ------------- |
 | setTimeout 而非 setInterval | 精确计算下次运行时间，避免漂移 |
 | 250ms 合并窗口 | 防止多个事件同时触发 |
 | 双重缓冲 | 运行中收到新请求不丢失 |
@@ -307,7 +325,7 @@ openclaw 用 SQLite-vec 做向量语义搜索 + BM25 关键词搜索，本项目
 **12 个精华设计模式**（全部从 openclaw 源码提炼）：
 
 | 设计模式 | 文件 | 对齐 openclaw |
-|---------|------|--------------|
+| --------- | ------ | -------------- |
 | 协议帧 (req/res/event 判别联合) | `protocol.ts` | `protocol/schema/frames.ts` |
 | Challenge-Response 握手 | `server.ts` | `server/ws-connection.ts` |
 | Timing-safe token 比较 | `handlers.ts` | `auth.ts` safeEqual |
@@ -348,7 +366,7 @@ client.request("chat.send", { sessionKey: "main", message: "hello" });
 ## 设计模式索引
 
 | 模式 | 所在文件 | 说明 |
-|------|----------|------|
+| ------ | ---------- | ------ |
 | EventStream 异步推拉 | `agent-events.ts` | push/asyncIterator/end/result |
 | Subscribe/Emit 观察者 | `agent.ts` | listeners Set + subscribe 返回 unsubscribe |
 | 双层循环 | `agent-loop.ts` | outer (follow-up) + inner (tools+steering) |
@@ -373,7 +391,7 @@ client.request("chat.send", { sessionKey: "main", message: "hello" });
 
 ## 配置与运行
 
-要求：Node.js `>=20`
+要求：Node.js `>=22.19.0`
 
 在项目根目录执行：
 
@@ -384,10 +402,11 @@ pnpm install
 推荐用 `.env` 文件配置（项目启动时自动加载）：
 
 ```env
-OPENCLAW_MINI_PROVIDER=anthropic
-OPENCLAW_MINI_MODEL=claude-sonnet-4-20250514
-OPENCLAW_MINI_BASE_URL=https://your-proxy.com/api/anthropic
-ANTHROPIC_API_KEY=sk-xxx
+OPENCLAW_MINI_PROVIDER=openai
+OPENCLAW_MINI_MODEL=glm-4-flash
+OPENCLAW_MINI_BASE_URL=https://open.bigmodel.cn/api/paas/v4
+OPENCLAW_MINI_REASONING=none
+OPENAI_API_KEY=替换为你的智谱API_Key
 ```
 
 ```bash
@@ -398,14 +417,14 @@ pnpm dev
 
 智谱、DeepSeek、月之暗面 Kimi 等国产大模型均兼容 OpenAI 格式，通过 `provider=openai` + 自定义 `BASE_URL` 即可接入。
 
-以智谱免费模型 GLM-4-Flash 为例：
+以智谱开放平台普通 API 的 GLM-4-Flash 为例（不适用于 GLM Coding Plan 专用接口）：
 
 ```env
 OPENCLAW_MINI_PROVIDER=openai
 OPENCLAW_MINI_MODEL=glm-4-flash
 OPENCLAW_MINI_BASE_URL=https://open.bigmodel.cn/api/paas/v4
 OPENCLAW_MINI_REASONING=none
-OPENAI_API_KEY=你的API Key
+OPENAI_API_KEY=替换为你的智谱API_Key
 ```
 
 ```bash
@@ -413,6 +432,9 @@ pnpm dev
 ```
 
 > `OPENCLAW_MINI_REASONING=none` 用于关闭 extended thinking，不支持该特性的模型需设置此项。
+
+在智谱开放平台创建 API Key 后填写到本地 `.env` 的 `OPENAI_API_KEY`；无需额外设置 `ZHIPU_API_KEY`。
+如需切换模型，修改 `OPENCLAW_MINI_MODEL` 为你的智谱账号可用且支持工具调用的模型 ID。
 
 ### Gateway 模式
 

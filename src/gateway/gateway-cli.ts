@@ -15,7 +15,8 @@ import fs from "node:fs";
 import path from "node:path";
 import readline from "node:readline";
 import { Agent } from "../agent.js";
-import { getEnvApiKey } from "@mariozechner/pi-ai";
+import { getEnvApiKey } from "@earendil-works/pi-ai/compat";
+import { parseReasoningLevel } from "../provider/index.js";
 import { startGatewayServer } from "./server.js";
 import { GatewayClient } from "./client.js";
 import type { EventFrame } from "./protocol.js";
@@ -56,11 +57,12 @@ async function serve() {
   const provider = flag(args, "--provider") ?? process.env.OPENCLAW_MINI_PROVIDER ?? "anthropic";
   const model = flag(args, "--model") ?? process.env.OPENCLAW_MINI_MODEL;
   const baseUrl = flag(args, "--base-url") ?? process.env.OPENCLAW_MINI_BASE_URL;
+  const reasoning = parseReasoningLevel(flag(args, "--reasoning") ?? process.env.OPENCLAW_MINI_REASONING);
   const apiKey = flag(args, "--api-key") ?? getEnvApiKey(provider);
 
   if (!apiKey) { console.error("Error: API key not found"); process.exit(1); }
 
-  const agent = new Agent({ apiKey, provider, ...(model ? { model } : {}), ...(baseUrl ? { baseUrl } : {}) });
+  const agent = new Agent({ apiKey, provider, reasoning, ...(model ? { model } : {}), ...(baseUrl ? { baseUrl } : {}) });
   const gw = await startGatewayServer({ port, token, agent });
 
   console.log(`\n\x1b[36m\u25cf\x1b[0m \x1b[1mMini Gateway\x1b[0m`);

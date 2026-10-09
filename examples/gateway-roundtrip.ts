@@ -16,7 +16,8 @@ import { Agent } from "../src/index.js";
 import { GatewayClient } from "../src/gateway/client.js";
 import { startGatewayServer } from "../src/gateway/server.js";
 import type { EventFrame } from "../src/gateway/protocol.js";
-import { getEnvApiKey } from "@mariozechner/pi-ai";
+import { getEnvApiKey } from "@earendil-works/pi-ai/compat";
+import { parseReasoningLevel } from "../src/provider/index.js";
 
 function loadEnvFile(dir: string = process.cwd()): void {
   const envPath = path.join(dir, ".env");
@@ -45,6 +46,7 @@ async function main() {
   const provider = process.env.OPENCLAW_MINI_PROVIDER ?? "anthropic";
   const model = process.env.OPENCLAW_MINI_MODEL;
   const baseUrl = process.env.OPENCLAW_MINI_BASE_URL;
+  const reasoning = parseReasoningLevel(process.env.OPENCLAW_MINI_REASONING);
   const apiKey = getEnvApiKey(provider);
 
   if (!apiKey) {
@@ -54,6 +56,7 @@ async function main() {
   const agent = new Agent({
     apiKey,
     provider,
+    reasoning,
     ...(model ? { model } : {}),
     ...(baseUrl ? { baseUrl } : {}),
     workspaceDir: process.cwd(),

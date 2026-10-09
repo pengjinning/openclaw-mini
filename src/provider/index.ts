@@ -1,11 +1,28 @@
 /**
- * Provider 抽象层 — 基于 @mariozechner/pi-ai
+ * Provider 抽象层 — 基于 @earendil-works/pi-ai
  *
  * 设计决策:
  * - LLM SDK 适配（Anthropic/OpenAI/Gemini）交给 pi-ai 处理
  * - Agent 层只依赖 pi-ai 的统一接口: StreamFunction, Model, Context, AssistantMessageEvent
  * - 错误分类与重试是 Agent 层逻辑，保留在 errors.ts
  */
+
+import type { ThinkingLevel } from "@earendil-works/pi-ai";
+
+export function parseReasoningLevel(value: string | undefined): ThinkingLevel | "none" | undefined {
+  switch (value) {
+    case undefined:
+    case "none":
+    case "minimal":
+    case "low":
+    case "medium":
+    case "high":
+    case "xhigh":
+      return value;
+    default:
+      throw new Error(`Invalid reasoning level: ${value}`);
+  }
+}
 
 // pi-ai 核心类型
 export type {
@@ -31,31 +48,31 @@ export type {
   UserMessage as PiUserMessage,
   ToolResultMessage as PiToolResultMessage,
   Tool as PiTool,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai";
 
-// pi-ai 流式调用
+// pi-ai 1.x 将旧版全局调用接口保留在 compat 入口
 export {
   stream,
   streamSimple,
   complete,
   completeSimple,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai/compat";
 
 // pi-ai provider 适配器
-export { streamAnthropic, streamSimpleAnthropic } from "@mariozechner/pi-ai";
+export { streamAnthropic, streamSimpleAnthropic } from "@earendil-works/pi-ai/compat";
 
 // pi-ai 模型注册表
-export { getModel, getModels, getProviders } from "@mariozechner/pi-ai";
+export { getModel, getModels, getProviders } from "@earendil-works/pi-ai/compat";
 
 // pi-ai EventStream
 export {
   createAssistantMessageEventStream,
   type EventStream,
   AssistantMessageEventStream as AssistantMessageEventStreamClass,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai";
 
 // pi-ai context overflow 检测
-export { isContextOverflow } from "@mariozechner/pi-ai";
+export { isContextOverflow } from "@earendil-works/pi-ai";
 
 // Agent 层: 错误分类与重试（pi-ai 不包含）
 export {

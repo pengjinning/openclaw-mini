@@ -57,8 +57,8 @@ import {
 import type { MiniAgentEvent } from "./agent-events.js";
 import { runAgentLoop } from "./agent-loop.js";
 import { installSessionToolResultGuard } from "./session-tool-result-guard.js";
-import type { Model, StreamFunction, ThinkingLevel, Context as PiContext } from "@mariozechner/pi-ai";
-import { streamSimple, completeSimple, getModel, getEnvApiKey } from "@mariozechner/pi-ai";
+import type { Model, StreamFunction, ThinkingLevel, Context as PiContext } from "@earendil-works/pi-ai";
+import { streamSimple, completeSimple, getModel, getEnvApiKey } from "@earendil-works/pi-ai/compat";
 import { convertMessagesToPi } from "./message-convert.js";
 import {
   shouldRunMemoryFlush,
@@ -145,8 +145,8 @@ export interface AgentConfig {
   };
   /** 温度参数（0-1，对应 OpenClaw: agents.defaults.models[provider/model].params.temperature） */
   temperature?: number;
-  /** 思考级别: minimal / low / medium / high / xhigh */
-  reasoning?: ThinkingLevel;
+  /** 思考级别: minimal / low / medium / high / xhigh；none 关闭思考 */
+  reasoning?: ThinkingLevel | "none";
   /** 最大循环次数 */
   maxTurns?: number;
   /** 会话存储目录 */
@@ -335,7 +335,7 @@ export class Agent {
     this.workspaceDir = config.workspaceDir ?? process.cwd();
     this.apiKey = config.apiKey ?? getEnvApiKey(provider);
     this.temperature = config.temperature;
-    this.reasoning = config.reasoning ?? "medium";
+    this.reasoning = config.reasoning === "none" ? undefined : config.reasoning ?? "medium";
     this.toolPolicy = config.toolPolicy;
     this.approval = config.approval;
     this.onApprovalRequest = config.onApprovalRequest;

@@ -10,7 +10,7 @@
  * 与 errors.ts 的错误分类配合：分类决定是否值得切换，cooldown 决定多久不再用它。
  */
 
-import type { Model } from "@mariozechner/pi-ai";
+import type { Model } from "@earendil-works/pi-ai";
 
 /**
  * 一个可用的调用档位（provider + model + key）

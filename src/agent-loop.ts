@@ -23,7 +23,8 @@
  * └─ 若有 follow-up: 继续外层循环
  */
 
-import type { EventStream } from "@mariozechner/pi-ai";
+import type { EventStream } from "@earendil-works/pi-ai";
+import { normalizeContext } from "@earendil-works/pi-ai";
 import type { Tool, ToolContext } from "./tools/types.js";
 import type { Message, ContentBlock } from "./session.js";
 import type {
@@ -32,7 +33,7 @@ import type {
   Context as PiContext,
   ThinkingLevel,
   AssistantMessage,
-} from "@mariozechner/pi-ai";
+} from "@earendil-works/pi-ai";
 import {
   retryAsync,
   isContextOverflowError,
@@ -250,7 +251,7 @@ export function runAgentLoop(params: AgentLoopParams): EventStream<MiniAgentEven
                   ...(temperature !== undefined ? { temperature } : {}),
                   ...(reasoning ? { reasoning } : {}),
                 };
-                const eventStream = streamFn(current.modelDef, piContext, streamOpts);
+                const eventStream = streamFn(current.modelDef, normalizeContext(piContext), streamOpts);
 
                 for await (const event of eventStream) {
                   if (abortSignal.aborted) break;

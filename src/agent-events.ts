@@ -17,7 +17,7 @@
  *   Layer 3: Agent.emit(event) → listeners → 外部订阅者（CLI 等）
  */
 
-import { EventStream } from "@mariozechner/pi-ai";
+import { EventStream } from "@earendil-works/pi-ai";
 import type { Message } from "./session.js";
 
 // ============== 事件类型（判别联合） ==============

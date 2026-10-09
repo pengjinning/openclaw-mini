@@ -11,7 +11,22 @@ import type {
   TextContent as PiTextContent,
   ThinkingContent as PiThinkingContent,
   ToolCall as PiToolCall,
-} from "@mariozechner/pi-ai";
+  JsonValue,
+} from "@earendil-works/pi-ai";
+
+function isJsonValue(value: unknown, ancestors = new Set<object>()): value is JsonValue {
+  if (value === null || typeof value === "string" || typeof value === "boolean") return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object" || ancestors.has(value)) return false;
+  if (!Array.isArray(value)) {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return false;
+  }
+  ancestors.add(value);
+  const valid = Object.values(value).every((entry) => isJsonValue(entry, ancestors));
+  ancestors.delete(value);
+  return valid;
+}
 
 const EMPTY_USAGE = {
   input: 0,
@@ -99,15 +114,18 @@ export function convertMessagesToPi(
         } else if (block.type === "text" && block.text) {
           piContent.push({ type: "text", text: block.text });
         } else if (block.type === "tool_use") {
+          const args = block.input ?? {};
+          if (!isJsonValue(args) || args === null || Array.isArray(args)) {
+            throw new Error(`Invalid JSON arguments for tool call: ${block.name ?? block.id ?? "unknown"}`);
+          }
           piContent.push({
             type: "toolCall",
             id: block.id ?? "",
             name: block.name ?? "",
-            arguments: block.input ?? {},
+            arguments: args,
           });
         }
       }
-
       result.push({
         role: "assistant",
         content: piContent,

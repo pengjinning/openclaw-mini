@@ -14,7 +14,8 @@ import readline from "node:readline";
 import { Writable } from "node:stream";
 import { Agent } from "./index.js";
 import { resolveSessionKey } from "./session-key.js";
-import { getEnvApiKey } from "@mariozechner/pi-ai";
+import { getEnvApiKey } from "@earendil-works/pi-ai/compat";
+import { parseReasoningLevel } from "./provider/index.js";
 import type { ApprovalConfig, ApprovalDecision, ApprovalRequest } from "./tool-approval.js";
 
 // ============== .env 加载 ==============
@@ -170,7 +171,7 @@ async function main() {
   const model = readFlag(args, "--model") ?? process.env.OPENCLAW_MINI_MODEL;
   const baseUrl = readFlag(args, "--base-url") ?? process.env.OPENCLAW_MINI_BASE_URL;
   const reasoningFlag = readFlag(args, "--reasoning") ?? process.env.OPENCLAW_MINI_REASONING;
-  const reasoning = reasoningFlag === "none" ? undefined : (reasoningFlag as any) ?? "medium";
+  const reasoning = parseReasoningLevel(reasoningFlag) ?? "medium";
   const apiKey = readFlag(args, "--api-key") ?? getEnvApiKey(provider);
   if (!apiKey) {
     console.error(`错误: 未找到 ${provider} 的 API Key，请设置对应环境变量或使用 --api-key 参数`);
@@ -231,7 +232,7 @@ async function main() {
 
   // Banner
   console.log(`${badge("MINI", badgeStyles.system)} ${color("OpenClaw Mini", "bold")}`);
-  console.log(color(`  ${provider}${model ? ` · ${model}` : ""}${reasoning ? ` · thinking:${reasoning}` : ""} · ${agentId}`, "dim"));
+  console.log(color(`  ${provider}${model ? ` · ${model}` : ""}${reasoning && reasoning !== "none" ? ` · thinking:${reasoning}` : ""} · ${agentId}`, "dim"));
   console.log(color(`  ${workspaceDir}`, "dim"));
   const hints = ["/help 查看命令"];
   if (approval) hints.push(`approval: ${approval.ask}`);
